@@ -8,18 +8,21 @@ View(v17)
 m90 <- get_acs(geography = "county",
                variables = c("B01001A_001", "B01001B_001", "B01001C_001", "B01001D_001", 
                              "B01001E_001", "B01001F_001", "B01001G_001", "B01001H_001",
-                             "B01001I_001", "B01001_002", "B01001_026"),
+                             "B01001I_001", "B01001_002", "B01001_026", "B17026_001",
+                             "B19001_001", "B08015_001"),
                year = 2018,
                survey = "acs1")
 head(m90)
 
 variable_names <- c("White", "Black", "AIAN", "Asian",
                     "NH", "other", "Multiracial", "WNHL",
-                    "Latino", "Male", "Female")
+                    "Latino", "Male", "Female", "IncomeToPoverty",
+                    "HouseholdIncome", "Vehicles")
 library(plyr)
 m90$variable <- mapvalues(m90$variable, from = c("B01001A_001", "B01001B_001", "B01001C_001", "B01001D_001", 
                                                  "B01001E_001", "B01001F_001", "B01001G_001", "B01001H_001",
-                                                 "B01001I_001", "B01001_002", "B01001_026"),
+                                                 "B01001I_001", "B01001_002", "B01001_026", "B17026_001",
+                                                 "B19001_001", "B08015_001"),
                           to = variable_names)
 imp_counties <- c("Maricopa County, Arizona", "San Francisco County, California", "Los Angeles County, California", 
                   "Sacramento County, California", "Denver County, Colorado", "Miami-Dade County, Florida",
