@@ -83,13 +83,6 @@ cali_la <- get_decennial(
 devtools::install_github("abresler/nbastatR")
 library("nbastatR")
 
-draft_2016 <- 
-  get_nba_draftnet_year_mock_draft(draft_year = 2016)
-
-mocks_09_15 <- 
-  get_nba_draftnet_years_mock_draft(draft_years = 2009:2015)
-get_bref_coach_award_df("Gregg Popovich")
-
 salaries <- nba_insider_salaries(
   assume_player_opt_out = F,
   assume_team_doesnt_exercise = T,
@@ -105,8 +98,53 @@ dict <- nba_players() %>%
 #Career and Season Data for ATL Hawks roster 2017- 2018
 df_rosters <- seasons_rosters(2018:2019)
 roster_atl <- df_rosters %>% 
-  filter ((slugTeam == "ATL") & (yearSeason == 2018))
+  filter ((slugTeam == "ATL") & (yearSeason == 2019))
 player_career_stats <- players_careers(players = roster_atl$namePlayer)
 atl_seasons <- dataPlayerSeasonTotalsRegularSeason
 atl_career <- merge(x = roster_atl, y = dataPlayerCareerTotalsRegularSeason, by = "namePlayer", all = TRUE) %>% 
-  select(-c("urlTeamSeasonLogo", "urlPlayerStats", "urlPlayerThumbnail", "urlPlayerHeadshot", "urlPlayerActionPhoto", "urlPlayerPhoto"))
+  select(-c("urlTeamSeasonLogo", "urlPlayerStats", "urlPlayerThumbnail", "urlPlayerHeadshot", "urlPlayerActionPhoto", "urlPlayerPhoto")) %>% 
+  mutate(possessions = fgaTotals - orebTotals + (0.4 * ftaTotals))
+atl_career <- atl_career %>% 
+  mutate(Off_Rating = gp/possessions)
+atl_seasons %>% 
+  group_by(slugSeason) %>% 
+  summarise(mean_points = mean(ptsTotals)) %>%
+  ggplot(aes(x = slugSeason, y = mean_points)) +
+  geom_col() +
+  theme_bw()
+
+#Basketball reference data
+player_stats <- bref_players_stats(seasons = 2019:2020, tables = c("advanced", "totals")) 
+
+player_stats_clean <- player_stats %>% 
+  filter(yearSeason == 2020) %>% 
+  select(-c("urlPlayerStats", "urlPlayerThumbnail", "urlPlayerHeadshot", "urlPlayerActionPhoto", "urlPlayerPhoto"))
+
+player_stats %>% 
+  ggplot(aes(x = groupPosition, y =ratioPER)) +
+  geom_violin() +
+  geom_boxplot() +
+  theme_bw()
+player_stats %>% 
+  ggplot(aes(x = ratioWS)) +
+  geom_density() +
+  theme_bw()
+
+library(ggcorrplot)
+basket_bar <- player_stats %>% 
+  dplyr::select(c(ratioPER, ratioWS, pctUSG, pct3PRate, pctTrueShooting, pctEFG, ratioBPM, ratioVORP))
+corr_data <- cor(basket_bar)
+colnames(corr_data) <- c("PEfficiencyRating", "Win Share" , "Usage Rate","3point%","TrueShooting%", "EFieldGoal%", "Box +/-", "Value Over ReplacementP")
+rownames(corr_data) <- c("PEfficiencyRating", "Win Share" , "Usage Rate","3point%","TrueShooting%", "EFieldGoal%", "Box +/-", "Value Over ReplacementP")
+ggcorrplot(corr_data)
+round_cor_matrix <- 
+  round(corr_data, 2)
+ggcorrplot(round_cor_matrix, 
+           hc.order = TRUE,
+           type = "lower",
+           lab = TRUE,
+           colors = c("#0072B2", "white", "#D55E00")) +
+  labs(
+    title = "Correlation Plot with different evalaution metrics"
+  ) +
+  scale_color_continuous()
