@@ -157,3 +157,18 @@ player_stats_clean %>%
   facet_wrap(~stat, scales = "free_x", nrow = 2) +
   theme_bw()
 #they are now normalized. May need to scale these variables.
+
+
+
+#Game by game data
+game_data_2018 <- game_logs(seasons = 2019, result_types = c("team", "player"))
+#  Game score = Points Scored + (0.4 x Field Goals) – (0.7 x Field Goal Attempts) – (0.4 x (Free Throw Attempts – Free Throws)) +
+#(0.7 x Offensive Rebounds) + (0.3 x Defensive Rebounds) + Steals + (0.7 x Assists) + (0.7 x Blocks) – (0.4 x Personal Fouls) 
+#– Turnovers
+draft_game_data_2018 <- dataGameLogsPlayer %>% 
+  filter(namePlayer %in% draft_30$namePlayer) %>% 
+  left_join(dplyr::select(draft_30, namePlayer, numberRoundPick), "namePlayer") %>% 
+  mutate(game_score = pts + (0.4 * fgm) - (0.7 * fga) - (0.4 * (fta - ftm)) + 
+           (0.7 * oreb) + (0.3 * dreb) + stl + (0.7 * ast) + (0.7 * blk) -
+           (0.4 * pf) - tov) %>% 
+  arrange(numberRoundPick)
