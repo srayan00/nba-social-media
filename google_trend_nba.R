@@ -75,9 +75,9 @@ draft_30[count, "YT_hits"] <- sum(example_time_yt$hits)
 write.csv(draft_30, "C:\\Users\\sahan\\OneDrive\\Documents\\Projects\\CMSAC2020\\draft_player_2018_gtrend.csv")
 
 
+#Creating a time series data set
 count <- 1
 time_draft_2018 <- data.frame()
-#Creating a time series data set
 for (name in draft_30$namePlayer) {
   sample_web <- gtrends(name, time = "2018-10-16 2019-04-10")
   sample_web_time <- sample_web$interest_over_time
@@ -88,15 +88,19 @@ for (name in draft_30$namePlayer) {
   
   sample_image <- gtrends(name ,gprop = "images", time = "2018-10-16 2019-04-10")
   sample_time_image <- sample_image$interest_over_time
-  sample_time_image <- sample_time_image %>% 
-    dplyr::select(-c(geo, time, gprop, category, keyword, date)) %>% 
-    rename(image_hits = hits)
+  if (is.null(sample_time_image)) {
+    sample_time_image <- c(rep(NULL, 177))
+  } else {
+    sample_time_image <- sample_time_image %>% 
+      dplyr::select(-c(geo, time, gprop, category, keyword, date)) %>% 
+      rename(image_hits = hits)
+  }
   sample_time <- dplyr::bind_cols(sample_time, sample_time_image)
   print(count)
   
   sample_news <- gtrends(name,gprop = "news", time = "2018-10-16 2019-04-10")
   sample_time_news<- sample_news$interest_over_time
-  if (sample_time_news == NULL) {
+  if (is.null(sample_time_news)) {
     sample_time_news <- c(rep(NULL, 177))
   } else {
     sample_time_news <- sample_time_news %>% 
@@ -108,47 +112,18 @@ for (name in draft_30$namePlayer) {
   
   sample_yt <- gtrends(name,gprop = "youtube", time = "2018-10-16 2019-04-10")
   sample_time_yt<- sample_yt$interest_over_time
-  sample_time_yt <- sample_time_yt %>% 
-    dplyr::select(-c(geo, time, gprop, category, keyword, date)) %>% 
-    rename(yt_hits = hits)
+  if (is.null(sample_time_yt)) {
+    sample_time_yt <- c(rep(NULL, 177))
+  } else {
+    sample_time_yt <- sample_time_yt %>% 
+      dplyr::select(-c(geo, time, gprop, category, keyword, date)) %>% 
+      rename(yt_hits = hits)
+  }
   sample_time <- dplyr::bind_cols(sample_time, sample_time_yt)
   time_draft_2018 <- dplyr::bind_rows(time_draft_2018, sample_time)
   print(count)
   count <- count + 1
 }
 
-
-
-
-sample_web <- gtrends(name, time = "2018-10-16 2019-04-10")
-sample_web_time <- sample_web$interest_over_time
-sample_time <- sample_web_time %>% 
-  dplyr::select(-c(geo, time, gprop, category)) %>% 
-  rename(web_hits = hits)
-print(count)
-
-sample_image <- gtrends(name ,gprop = "images", time = "2018-10-16 2019-04-10")
-sample_time_image <- sample_image$interest_over_time
-sample_time_image <- sample_time_image %>% 
-  dplyr::select(-c(geo, time, gprop, category, keyword, date)) %>% 
-  rename(image_hits = hits)
-sample_time <- dplyr::bind_cols(sample_time, sample_time_image)
-print(count)
-
-sample_news <- gtrends("Marvin Bagley III",gprop = "news", time = "2018-10-16 2019-04-10")
-sample_time_news<- sample_news$interest_over_time
-sample_time_news <- sample_time_news %>% 
-  dplyr::select(-c(geo, time, gprop, category, keyword, date)) %>% 
-  rename(news_hits = hits)
-sample_time <- dplyr::bind_cols(sample_time, sample_time_news)
-print(count)
-
-sample_yt <- gtrends(name,gprop = "youtube", time = "2018-10-16 2019-04-10")
-sample_time_yt<- sample_yt$interest_over_time
-sample_time_yt <- sample_time_yt %>% 
-  dplyr::select(-c(geo, time, gprop, category, keyword, date)) %>% 
-  rename(yt_hits = hits)
-sample_time <- dplyr::bind_cols(sample_time, sample_time_yt)
-time_draft_2018 <- dplyr::bind_rows(time_draft_2018, sample_time)
-
-
+write.csv(draft_30, "C:\\Users\\sahan\\OneDrive\\Documents\\Projects\\CMSAC2020\\time_series_draft_2018.csv")
+#Figure out why there are so many Null values and Change kevin knox and mo bamba
