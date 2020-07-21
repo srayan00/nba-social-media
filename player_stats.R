@@ -154,6 +154,6 @@ player_stats_clean %>%
                values_to = "value") %>% 
   ggplot(aes(x= value)) +
   geom_histogram() +
-  facet_wrap(~stat, scales = "free_x") +
+  facet_wrap(~stat, scales = "free_x", nrow = 2) +
   theme_bw()
 #they are now normalized. May need to scale these variables.
