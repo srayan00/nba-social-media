@@ -82,13 +82,6 @@ xgb_fit_final$evaluation_log %>%
 library(DiagrammeR)
 xgb.plot.tree(model = xgb_fit_final)
 vip(xgb_fit_final, bar = FALSE) + theme_bw()
-summary(xgb_fit_final)
-xgb_tune$results %>% 
-  group_by(eta, nrounds) %>%  
-  summarize(avg_rmse = mean(RMSE) ) %>% 
-  ggplot(aes(x = nrounds, y = eta, size = avg_rmse)) +
-  geom_point() +
-  theme_bw()
 
 library(pdp)
 partial(xgb_fit_final, pred.var = "sentiment_week",
