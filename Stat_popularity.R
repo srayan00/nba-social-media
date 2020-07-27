@@ -14,8 +14,39 @@ draft_game_data_2018_clean <- draft_game_data_2018_1 %>%
   left_join(timeseries_draft_2018_clean, by = c("namePlayer", "week")) %>% 
   left_join(select(df_rosters_2019, namePlayer, weightLBS, heightInches, groupPosition), by = "namePlayer") %>% 
   select(-numberRoundPick.x) %>%  rename(numberRoundPick = numberRoundPick.y)
-
 write.csv(draft_game_data_2018_clean, "C:\\Users\\sahan\\OneDrive\\Documents\\Projects\\CMSAC2020\\draft_2018_clean.csv")
+
+reddit_draft_data <- read.csv("C:\\Users\\sahan\\Downloads\\combo_scored_1.csv")
+reddit_draft_data <- reddit_draft_data %>% 
+  mutate(sentiment_week = sentiment / 7,
+         positive_week = positive/ 7,
+         negative_week = negative / 7)
+
+draft_data_combined <- reddit_draft_data %>% 
+  rename(namePlayer = player_name) %>% 
+  inner_join(draft_game_data_2018_clean, by = c("namePlayer", "week")) %>% 
+  arrange(numberRoundPick) %>% 
+  mutate(wiki_per_100 = wiki_views / 100)
+
+write.csv(draft_data_combined, "C:\\Users\\sahan\\OneDrive\\Documents\\Projects\\CMSAC2020\\draft_wreddit_clean.csv")
+
+#Comment score and controversiality
+
+reddit_comment <- read_xlsx("C:\\Users\\sahan\\Downloads\\final_reddit_datescorrected.xlsx") 
+
+reddit_comment$comm_date <- as.Date(reddit_comment$comm_date)
+
+reddit_comment <- reddit_comment %>%  
+  filter((comm_date > as.Date("2018-10-16")) & ((comm_date < as.Date("2019-04-10"))) )
+
+reddit_comment_week <- reddit_comment %>% 
+  mutate(week = cut(comm_date, "week")) %>% 
+  group_by(player_name, week) %>% 
+  summarize(avg_commentscoreperday = sum(comment_score) / 7, 
+            avg_controversial = sum(controversiality) / 7)
+reddit_draft_comment_data <- left_join(reddit_comment_week, reddit_draft_data, by = c("player_name", "week"))
+write.csv(reddit_draft_comment_data, "C:\\Users\\sahan\\OneDrive\\Documents\\Projects\\CMSAC2020\\all_reddit_data.csv")
+
 #EDA
 #Normality check
 draft_game_data_2018_clean %>% 
@@ -30,3 +61,168 @@ draft_game_data_2018_clean %>%
   filter(win_percent %in% c(0 , 1)) %>% 
   ggplot(aes(x = as.factor(win_percent), y = avg_web_hits)) +
   geom_boxplot()
+
+draft_game_data_2018_clean %>% 
+  ggplot(aes(x = avg_minutes, y = avg_web_hits)) +
+  geom_point(alpha = 0.2)
+
+#draft data combined
+draft_data_combined %>% 
+  ggplot(aes(x = scale(sentiment), y = win_percent)) +
+  geom_jitter()
+
+draft_data_combined %>% 
+  filter(sentiment < 0) %>% 
+  ggplot(aes(x = positive)) +
+  geom_density()
+
+draft_data_combined %>% 
+  group_by(numberRoundPick) %>% 
+  summarize(gamescore = mean(avg_game_score), senti = mean(sentiment_week), webhit = mean(avg_yt_hits)) %>% 
+  ggplot(aes(x = numberRoundPick, y = senti)) +
+  geom_point() +
+  xlab("Number Round Pick") + ylab("Average Sentiment score") +
+  theme_bw()
+
+#Hierarchial Clustering
+
+draft_scaled_data <- draft_data_combined %>% 
+  select(wiki_per_100, avg_web_hits, avg_news_hits, avg_yt_hits, sentiment_week) %>% 
+  scale()  %>% 
+  as.data.frame()
+
+nba_draft_hclust <- 
+  hclust(dist(draft_scaled_data),
+    method = "complete")
+
+hc_player_clusters <-
+  cutree(nba_draft_hclust,
+         k = 4)
+draft_data_combined %>%
+  mutate(player_hc_clusters = 
+           as.factor(hc_player_clusters)) %>% 
+  ggplot(aes(x = avg_web_hits, y = wiki_per_100,
+             color = player_hc_clusters)) +
+  geom_point() +
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  labs(x = " Average web hits",
+       y = "Wiki views in 100s",
+       color = "Cluster") +
+  theme(legend.position = "bottom")
+
+# What is cluster 3. The players have high average game score and average minutes but popularity metrics doesnt capture this
+# Deandre Ayton and Trae Young are only in cluster 3
+# In cluster 3, the players during that week weren't very popular but people had a highly positive sentiment towards them.
+# Cluster 2 : not popular, game score is low, sentiment score is low
+# Cluster 1 : a bit more popular than cluster 2; sentiment is the same as cluster 2; game score is a little better than
+# Cluster 4 : Most popular category, average game scores are still high but not as high as cluster 3
+
+draft_data_combined %>%
+  mutate(player_hc_clusters = 
+           as.factor(hc_player_clusters)) %>% 
+  ggplot(aes(x = player_hc_clusters, y = sentiment_week)) +
+  #geom_violin() + 
+  geom_boxplot(width = 0.2) +
+  theme_bw()
+
+draft_data_combined %>%
+  mutate(player_hc_clusters = 
+           as.factor(hc_player_clusters)) %>% 
+  ggplot(aes(x = player_hc_clusters, y = avg_game_score)) +
+  #geom_violin() + 
+  geom_boxplot(width = 0.2, fill = "#eb1933", size = 1.2) +
+  theme_bw() +
+  theme(
+    axis.title = element_text()
+  )
+
+#Gaussian Mixture Models
+library(mclust)
+draft_mclust <- Mclust(draft_scaled_data)
+summary(draft_mclust)
+draft_mclust$classification
+draft_data_combined %>% 
+  mutate(cluster = as.factor(draft_mclust$classification)) %>% 
+  ggplot(aes(x = avg_web_hits, y = wiki_per_100,
+             color = cluster)) +
+  geom_point() +
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  labs(x = " Average web hits",
+       y = "Wiki views in 100s",
+       color = "Cluster") +
+  theme(legend.position = "bottom")
+
+#Time series analysis
+#Top 5 picks
+draft_game_data_2018_clean$week <- as.Date(draft_game_data_2018_clean$week)
+
+draft_game_data_2018_clean %>% 
+  group_by(week) %>% 
+  
+
+draft_game_data_2018_clean %>% 
+  filter(namePlayer == "Deandre Ayton") %>% 
+  pivot_longer(c("avg_game_score", "avg_web_hits"),
+               names_to = "Name",
+               values_to = "value") %>% 
+  ggplot (aes(x = week, y = value)) +
+  geom_line()+
+  facet_wrap(~Name, scales = "free_y") +
+  theme_bw()
+
+timeseries_draft_2018_clean$week <- as.Date(timeseries_draft_2018_clean$week)
+timeseries_draft_2018_clean %>% 
+  filter(numberRoundPick < 5) %>% 
+  pivot_longer(c("wiki_views", "avg_web_hits", "avg_yt_hits"),
+               names_to = "names",
+               values_to = "values") %>% 
+  ggplot(aes(x = week, y = values)) +
+  geom_line(aes(color = namePlayer), width = 1.2) +
+  facet_wrap(~names, scales = "free_y", nrow = 2) +
+  theme_classic()
+
+draft_game_data_2018_clean %>% 
+  filter(numberRoundPick < 4) %>% 
+  pivot_longer(c("wiki_views", "avg_web_hits", "avg_yt_hits", "avg_game_score"),
+               names_to = "names",
+               values_to = "values") %>% 
+  ggplot(aes(x = week, y = values)) +
+  geom_line(aes(color = namePlayer), width = 1.2) +
+  facet_wrap(~names, scales = "free_y", nrow = 2) +
+  theme_classic()
+
+#Clustering for sentiment metrics
+reddit_draft_comment_data <- read.csv("C:\\Users\\sahan\\OneDrive\\Documents\\Projects\\CMSAC2020\\all_reddit_data.csv")
+draft_scaled_data_comment <- reddit_draft_comment_data %>% 
+  select(sentiment_week, avg_commentscoreperday) %>% 
+  scale()  %>% 
+  as.data.frame() %>% 
+  na.omit()
+
+nba_draft_hclust <- 
+  hclust(dist(draft_scaled_data_comment),
+         method = "complete")
+
+hc_player_clusters <-
+  cutree(nba_draft_hclust,
+         k = 5)
+reddit_draft_comment_data %>%
+  filter((!is.na(avg_commentscoreperday)) & (!is.na(sentiment_week))) %>% 
+  #na.omit() %>% 
+  mutate(player_hc_clusters = 
+           as.factor(hc_player_clusters)) %>% 
+  ggplot(aes(x = sentiment_week, y = avg_commentscoreperday,
+             color = player_hc_clusters)) +
+  geom_point() +
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  labs(x = "sentiment_week",
+       y = "comment score",
+       color = "Cluster") +
+  theme(legend.position = "bottom")
+
+#Cluster 1 :- Sentiment scores are low but comment scores are also quite low. This indicated that the plaer is controversial
+#Cluster 2: Higher sentiment scores and relatively higher comment scores. The player is perceived more positive than Cluster 1 players
+#Cluster 3: Higherst sentiment scores but comment scores are in between cluster 2 and cluster 1. The player is perceived most positively 
