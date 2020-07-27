@@ -172,3 +172,7 @@ draft_game_data_2018 <- dataGameLogsPlayer %>%
            (0.7 * oreb) + (0.3 * dreb) + stl + (0.7 * ast) + (0.7 * blk) -
            (0.4 * pf) - tov) %>% 
   arrange(numberRoundPick)
+df_rosters_2019 <- df_rosters %>% 
+  filter(yearSeason == 2019)
+
+write.csv(draft_game_data_2018, "C:\\Users\\sahan\\OneDrive\\Documents\\Projects\\CMSAC2020\\game_player_draft_data.csv")
