@@ -87,3 +87,88 @@ library(pdp)
 partial(xgb_fit_final, pred.var = "sentiment_week",
         train = as.matrix(dplyr::select(draft_data_combined, c(sentiment_week, wiki_per_100, avg_web_hits,
                                                                avg_image_hits, avg_news_hits, avg_yt_hits))))  %>% autoplot() + theme_bw()
+#Modeling of clusters
+set.seed(2000)
+train_index <- sample(1:nrow(draft_data_combined), 0.7 * nrow(draft_data_combined))
+test_index <- setdiff(1:nrow(draft_data_combined), train_index)
+draft_data_combined <- draft_data_combined %>% 
+  mutate(boostCluster = as.numeric(player_hc_clusters) - 1)
+# Build X_train, y_train, X_test, y_test
+X_train <- draft_data_combined[train_index, c("numGames", "avg_minutes", "avg_pct_fg3", "avg_pct_fg2", 
+                                              "win_percent", "avg_treb", "avg_pts", "avg_pf", "avg_pctFT")]
+y_train <- draft_data_combined[train_index, "boostCluster"]
+train_matrix = xgb.DMatrix(data = as.matrix(X_train), label = y_train)
+
+X_test <- draft_data_combined[test_index, c("numGames", "avg_minutes", "avg_pct_fg3", "avg_pct_fg2", 
+                                            "win_percent", "avg_treb", "avg_pts", "avg_pf", "avg_pctFT")]
+y_test <- draft_data_combined[test_index, "boostCluster"]
+test_matrix = xgb.DMatrix(data = as.matrix(X_test), label = y_test)
+library(caret)
+library(xgboost)
+
+set.seed(2000)
+xgb_fit <- xgboost(data = train_matrix, 
+                   objective = "binary:logistic",
+                   nrounds = 100,
+                   eta = 0.0025,
+                   eval_metric = "auc",
+                   scale_pos_weight = 10.44)
+vip(xgb_fit, bar = FALSE) + theme_bw()
+xgb_test_pred <- predict(xgb_fit, newdata = test_matrix)
+xgb_0_1 <- ifelse(xgb_test_pred > 0.1, 1, 0)
+confusionMatrix(factor(xgb_0_1), factor(y_test), mode = "everything")
+
+library(pROC)
+plot(roc(y_test, xgb_test_pred))
+#caret modeling
+library(xgboost)
+xgboost_tune_grid <- expand.grid(nrounds = seq(from = 10, to = 100, by = 10),
+                                 eta = c(0.025, 0.05, 0.075, 0.1), gamma = 0,
+                                 max_depth = c(1, 2, 3, 4), colsample_bytree = 1,
+                                 min_child_weight = 1, subsample = 1)
+xgboost_tune_control <- trainControl(method = "cv", number = 5, verboseIter = FALSE)
+set.seed(2000)
+xgb_tune_class<- train(x = as.matrix(X_train),
+                  y = y_train, trControl = xgboost_tune_control,
+                  tuneGrid = xgboost_tune_grid, method = "xgbTree", verbose = TRUE,
+                  objective = "binary:logistic", eval_metric = "auc", scale_pos_weight = 10)
+xgb_tune_class$bestTune
+set.seed(2000)
+xgb_fit_final_class <- xgboost(data = as.matrix(X_train),
+                         label = y_train, objective = "binary:logistic",
+                         nrounds = xgb_tune_class$bestTune$nrounds,
+                         params = as.list(dplyr::select(xgb_tune_class$bestTune,
+                                                        -nrounds)), 
+                         verbose = 0,
+                         eval_metric = "auc",
+                         scale_pos_weight = 10.44)
+xgb_test_pred <- predict(xgb_fit_final_class, newdata = test_matrix)
+plot(roc(y_test, xgb_test_pred))
+roc(y_test, xgb_test_pred)
+head(xgb_test_pred)
+hist(xgb_test_pred)
+stat.labs <-c("Avg Minutes", "Avg Points", "Avg FT%", "Avg Total Rebounds", "Avg 2 point%", 
+              "Number of games", "Avg 3 point %", "Avg personal fouls", "Win %")
+names(stat.labs) <- c("avg_minutes", "avg_pts", "avg_pctFT", "avg_treb", "avg_pct_fg2",
+                      "numGames", "avg_pct_fg3", "avg_pf", "win_percent")
+library(vip)
+vip(xgb_fit_final_class, geom = "point", color = "#2151a1") + theme_bw() +
+  labs(title = "Variable Importance Plot")
+#+scale_x_discrete(labels = labeller(stats = stat.labs))
+
+library(pdp)
+partial(xgb_fit_final_class, pred.var = "avg_minutes",
+        train = as.matrix(X_train),
+        plot.engine = "ggplot2", plot = TRUE, prob = TRUE) + geom_line(color = "#eb1933", size = 1) + theme_bw() +
+  labs(
+    x = "Average Minutes",
+    title = "Partial Dependence plot with Average Minutes"
+  )
+
+partial(xgb_fit_final_class, pred.var = "avg_pts",
+        train = as.matrix(X_train),
+        plot.engine = "ggplot2", plot = TRUE, prob = TRUE) + geom_line(color = "#2151a1", size = 1) + theme_bw() +
+  labs(
+    x = "Average Points",
+    title = "Partial Dependence plot with Average Points"
+  )

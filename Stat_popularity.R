@@ -113,7 +113,7 @@ draft_data_combined %>%
 
 #Hierarchial Clustering
 draft_scaled_data <- draft_data_combined %>% 
-  select(wiki_per_100, avg_web_hits, avg_news_hits, avg_yt_hits, sentiment_week) %>% 
+  select(wiki_per_100, avg_web_hits, avg_news_hits, avg_yt_hits, positive_week, negative_week) %>% 
   scale()  %>% 
   as.data.frame()
 
@@ -123,20 +123,22 @@ nba_draft_hclust <-
 
 hc_player_clusters <-
   cutree(nba_draft_hclust,
-         k = 4)
-draft_data_combined %>%
+         k = 2)
+draft_data_combined <-draft_data_combined %>%
+  mutate(player_hc_clusters = 
+           as.factor(hc_player_clusters))
+draft_data_combined %>% 
   mutate(player_hc_clusters = 
            as.factor(hc_player_clusters)) %>% 
-  ggplot(aes(x = avg_web_hits, y = wiki_per_100,
+  ggplot(aes(x = avg_web_hits, y = sentiment_week,
              color = player_hc_clusters)) +
   geom_point() +
   theme_bw() +
   labs(x = " Average web hits",
-       y = "Wiki views in 100s",
+       y = "Sentiment score",
        color = "Cluster",
-       title = "Scatter plot of Average Web hits and Wiki views") +
-  theme(legend.position = "bottom") +
-  scale_color_manual(values =c("#eb1933", "#2151a1", "black", "#a9a9a9"))
+       title = "Scatter plot of Average Web hits and Sentiment Score") +
+  theme(legend.position = "bottom") +  scale_color_manual(values =c("#eb1933", "#2151a1"))
 
 # What is cluster 3. The players have high average game score and average minutes but popularity metrics doesnt capture this
 # Deandre Ayton and Trae Young are only in cluster 3
@@ -149,13 +151,13 @@ draft_data_combined %>%
   mutate(player_hc_clusters = 
            as.factor(hc_player_clusters)) %>% 
   ggplot(aes(x = player_hc_clusters, y = avg_game_score)) +
-  #geom_violin() + 
+  geom_violin() + 
   geom_boxplot(width = 0.2, color = "#eb1933", size = 0.8 ) +
   theme_bw() +
   labs(
     x = "Clusters",
     y = "Average Game Score",
-    title = "Box Plot of Average game score for the 4 clusters "
+    title = "Box Plot of Average game score for the 2 clusters "
   ) +
   theme (
     plot.title = element_text(hjust = "0.5")
@@ -164,12 +166,17 @@ draft_data_combined %>%
 draft_data_combined %>%
   mutate(player_hc_clusters = 
            as.factor(hc_player_clusters)) %>% 
-  ggplot(aes(x = player_hc_clusters, y = avg_game_score)) +
+  ggplot(aes(x = player_hc_clusters, y = avg_pts)) +
   #geom_violin() + 
-  geom_boxplot(width = 0.2, fill = "#eb1933", size = 1.2) +
+  geom_boxplot(width = 0.2, color = "#2151a1", size = 0.8) +
   theme_bw() +
+  labs(
+    x = "Clusters",
+    y = "Average Points",
+    title = "Box Plot of Average points for the 2 clusters "
+  ) +
   theme(
-    axis.title = element_text()
+    axis.title = element_text(hjust = "0.5")
   )
 
 #Gaussian Mixture Models
