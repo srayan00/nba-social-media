@@ -167,7 +167,7 @@ draft_data_combined %>%
   mutate(player_hc_clusters = 
            as.factor(hc_player_clusters)) %>% 
   ggplot(aes(x = player_hc_clusters, y = avg_pts)) +
-  #geom_violin() + 
+  geom_violin() + 
   geom_boxplot(width = 0.2, color = "#2151a1", size = 0.8) +
   theme_bw() +
   labs(
